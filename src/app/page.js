@@ -3,56 +3,66 @@
 import styles from './page.module.css'
 import Button from '@mui/material/Button';
 import { useEffect, useState } from 'react';
+import WarningIcon from '@mui/icons-material/Warning';
 
 export default function Index() {
   const [pph, setPph] = useState();
   const [pints, setPints] = useState();
-  const [stamp, setStamp] = useState();
   const [elapsed, setElapsed] = useState();
+  const [elapsedPint, setElapsedPint] = useState();
   const [elapsedString, setElapsedString] = useState();
   const [lastPintTime, setLastPintTime] = useState();
   const [currentPintTime, setCurrentPintTime] = useState();
   const [bestPintTime, setBestPintTime] = useState();
-  const [timer, setTimer] = useState();
+  const [paused, setPaused] = useState();
+  const [running, setRunning] = useState();
 
   useEffect(() => {
-    if (elapsed) sessionStorage.setItem('elapsed', elapsed);
-    if (elapsedString) sessionStorage.setItem('elapsedString', elapsedString);
-    if (lastPintTime) sessionStorage.setItem('lastPintTime', lastPintTime);
-    if (currentPintTime) sessionStorage.setItem('currentPintTime', currentPintTime);
-    if (bestPintTime) sessionStorage.setItem('bestPintTime', bestPintTime);
-    if (stamp) sessionStorage.setItem('stamp', stamp);
-    if (pph) sessionStorage.setItem('pph', pph);
-    if (pints) sessionStorage.setItem('pints', JSON.stringify(pints));
-  }, [elapsed, elapsedString, lastPintTime, currentPintTime, pints, stamp, pph]);
+    console.log('writing to storage');
+    if (elapsed) localStorage.setItem('elapsed', elapsed);
+    if (elapsedPint) localStorage.setItem('elapsedPint', elapsedPint);
+    if (elapsedString) localStorage.setItem('elapsedString', elapsedString);
+    if (lastPintTime) localStorage.setItem('lastPintTime', lastPintTime);
+    if (currentPintTime) localStorage.setItem('currentPintTime', currentPintTime);
+    if (bestPintTime) localStorage.setItem('bestPintTime', bestPintTime);
+    if (pph) localStorage.setItem('pph', pph);
+    if (pints) localStorage.setItem('pints', JSON.stringify(pints));
+    if (paused != null) localStorage.setItem('paused', paused);
+    if (running != null) localStorage.setItem('running', running);
+  });
 
   useEffect(() => {
-    setPph(sessionStorage.getItem('pph') || null);
-    setElapsedString(sessionStorage.getItem('elapsedString') || '00:00');
-    setElapsed(sessionStorage.getItem('elapsed') ? parseInt(sessionStorage.getItem('elapsed')) : null);
-    setLastPintTime(sessionStorage.getItem('lastPintTime') || null);
-    setCurrentPintTime(sessionStorage.getItem('currentPintTime') || '00:00');
-    setBestPintTime(sessionStorage.getItem('bestPintTime') || null);
-    setStamp(sessionStorage.getItem('stamp') ? new Date(sessionStorage.getItem('stamp')) : null);
-    setPints(sessionStorage.getItem('pints') ? JSON.parse(sessionStorage.getItem('pints')) : []);
+    console.log('loading from storage');
+    setPph(localStorage.getItem('pph') || null);
+    setElapsedString(localStorage.getItem('elapsedString') || '00:00:00');
+    setElapsed(localStorage.getItem('elapsed') ? parseInt(localStorage.getItem('elapsed')) : null);
+    setElapsedPint(localStorage.getItem('elapsedPint') ? parseInt(localStorage.getItem('elapsedPint')) : null);
+    setLastPintTime(localStorage.getItem('lastPintTime') || null);
+    setCurrentPintTime(localStorage.getItem('currentPintTime') || '00:00');
+    setBestPintTime(localStorage.getItem('bestPintTime') || null);
+    setPints(localStorage.getItem('pints') ? JSON.parse(localStorage.getItem('pints')) : []);
+    setPaused(localStorage.getItem('paused') === 'true');
+    setRunning(localStorage.getItem('running') === 'true');
   }, []);
 
-  const startSess = () => {
-    setStamp(new Date());
-    startPint();
-  }
+  useEffect(()=> {
+    let intervalId = setInterval(() => {
+      if (paused) return;
+      setElapsed((prev) => prev + 1000);
+      setElapsedPint((prev) => prev + 1000);
+      // if (pints && pints.length > 0) {
+      //   setPints(prev => {
+      //     console.log(prev[prev.length - 1]);
+      //     prev[prev.length - 1].elapsed += 1000;
+      //     return prev;
+      //   });
+      // }
+    }, 1000);
+    return () => clearInterval(intervalId); 
+  }, [paused, pints, elapsed]);
 
   useEffect(() => {
-    if( stamp ) {
-      clearInterval(timer);
-      setTimer(setInterval(() => {
-        setElapsed(new Date() - stamp);
-      }, 5000));
-    }
-  }, [stamp]);
-
-  useEffect(() => {
-    if (elapsed) {
+    if (elapsed && pints.length > 0) {
       let hour = 3600000;
       if (pints.length > 1) {
         setPph(((pints.length-1) * (hour / elapsed)).toFixed(2));
@@ -60,72 +70,90 @@ export default function Index() {
 
       const elapsedDate = new Date(null);
       elapsedDate.setSeconds(elapsed/1000);
-      setElapsedString(elapsedDate.toISOString().slice(11, 16));
+      setElapsedString(elapsedDate.toISOString().slice(11, 19));
 
       const pintDate = new Date(null);
-      pintDate.setSeconds((new Date() - new Date(pints[pints.length - 1].start)) / 1000);
-      setCurrentPintTime(pintDate.toISOString().slice(11, 16));
+      pintDate.setSeconds(elapsedPint / 1000);
+      setCurrentPintTime(pintDate.toISOString().slice(14, 19));
     }
-  }, [elapsed, pints]);
+  }, [elapsed, pints, elapsedPint]);
 
-  const reset = () => {
+  const startSess = () => {
     setPph(null);
-    setElapsedString('00:00');
+    setElapsedString('00:00:00');
     setElapsed(null);
     setLastPintTime(null);
-    setBestPintTime(null);
     setCurrentPintTime('00:00');
+    setBestPintTime(null);
     setPints([]);
-    startSess();
+    setPaused(false);
+    setRunning(true);
+    startPint();
+    setElapsed(0);
+    setElapsedPint(0);
+  }
+
+  const reset = () => {
+    setRunning(false);
   }
 
   const nextPint = () => {
+    if(paused) return;
     finishPint();
     startPint();
   }
 
   const startPint = () => {
     setPints(prev => [...prev, {
-      start: new Date()
+      start: new Date(),
     }]);
   }
 
   const finishPint = () => {
-    if( !lastPintTime ) {
+    if( !bestPintTime ) {
       setBestPintTime(currentPintTime);
     } else {
-      setBestPintTime(currentPintTime < lastPintTime ? currentPintTime : lastPintTime);
+      setBestPintTime(currentPintTime < bestPintTime ? currentPintTime : bestPintTime);
     }
     setLastPintTime(currentPintTime);
-    setCurrentPintTime('00:00');
     setPints(prev => {
+      prev[prev.length - 1].elapsed = elapsedPint;
       prev[prev.length - 1].end = new Date();
       return prev
     });
+    setCurrentPintTime('00:00');
+    setElapsedPint(0);
   }
 
-  useEffect(() => {
-    console.log(pints);
-  }, [pints]);  
+  const warning = () => (lastPintTime && (currentPintTime > lastPintTime) && <WarningIcon style={{ marginRight: '0.25rem', marginLeft: '0.25rem', color: 'darkorange', fontSize: '14px' }} />)
 
   return (
     <main className={styles.main}>
-      { stamp ? (
+      { running === true && (
         <>
           <div className={styles.header}>
             {pph && pints && pints.length > 1 && <h1>{pph} PPH</h1>}
           </div>
           <div className={styles.meta}>
-            <h4><span>Session started:</span> {stamp.toLocaleTimeString().substring(0,5)}</h4>
-            <h4><span>Session time:</span> {elapsedString}</h4>
-            {bestPintTime && <h4><span>Best pint:</span> {bestPintTime}</h4>}
-            {lastPintTime && <h4><span>Last pint:</span> {lastPintTime}</h4>}
-            {currentPintTime && <h4><span>Current pint:</span> {currentPintTime}</h4>}
-            <h4><span>Pint count:</span> {pints.length - 1}</h4>
-            <div>
-              <Button onClick={reset} variant="text" color="info">Reset</Button>
+            <div style={{opacity: paused ? '0.4' : '1'}}>
+              {bestPintTime && <h4><span>Best pint:</span> {bestPintTime}</h4>}
+              {lastPintTime && <h4><span>Last pint:</span> {lastPintTime}</h4>}
+              {currentPintTime && 
+                <h4>
+                  {warning()}
+                  <span>Current pint:</span>
+                  {currentPintTime}
+                  {warning()}
+                </h4>
+              }
+              <h4><span>Pints finished:</span> {pints.length - 1}</h4>
             </div>
-            <div className={styles.pints}>
+            <div style={{ marginTop: '0.5rem' }}>
+              <Button onClick={reset} variant="text" color="info">Reset</Button>
+              {!paused && <Button onClick={() => setPaused(true)} variant="text" color="warning">Pause</Button>}
+              {paused && <Button onClick={() => setPaused(false)} variant="text" color="success">Resume</Button>}
+            </div>
+            <div className={styles.pints} style={{ opacity: paused ? '0.4' : '1' }}>
               {pints.map((p,i) => (
                 <img
                   src="pint.png"
@@ -138,12 +166,20 @@ export default function Index() {
               ))}
             </div>
           </div>
-          <div className={styles.inputGroup}>
+          <div className={styles.inputGroup} style={{ opacity: paused ? '0.4' : '1' }}>
             <Button onClick={nextPint} variant="contained" color="success">Finish Pint</Button>
           </div>
         </>
-      ) : (
+      )}
+      {running === false && (
         <div className={styles.splash}>
+          <img
+            src="pint.png"
+            alt="Pint"
+            width={100}
+            height={100}
+            style={{marginBottom: '2rem'}}
+          />
           <Button onClick={startSess} variant="contained" color="info">Start Session</Button>
         </div>
       )}
