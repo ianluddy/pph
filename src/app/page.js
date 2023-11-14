@@ -13,6 +13,7 @@ export default function Index() {
   const [elapsedString, setElapsedString] = useState();
   const [lastPintTime, setLastPintTime] = useState();
   const [currentPintTime, setCurrentPintTime] = useState();
+  const [warning, setWarning] = useState();
   const [bestPintTime, setBestPintTime] = useState();
   const [paused, setPaused] = useState();
   const [running, setRunning] = useState();
@@ -33,6 +34,7 @@ export default function Index() {
     if (pintStamps) localStorage.setItem('pintStamps', JSON.stringify(pintStamps));
     if (paused != null) localStorage.setItem('paused', paused);
     if (running != null) localStorage.setItem('running', running);
+    if (warning != null) localStorage.setItem('warning', warning);
   });
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function Index() {
     setPintStamps(localStorage.getItem('pintStamps') ? JSON.parse(localStorage.getItem('pintStamps')) : []);
     setPaused(localStorage.getItem('paused') === 'true');
     setRunning(localStorage.getItem('running') === 'true');
+    setWarning(localStorage.getItem('warning') === 'true');
   }, []);
 
   useEffect(()=> {
@@ -59,6 +62,12 @@ export default function Index() {
     }, 1000);
     return () => clearInterval(intervalId); 
   }, [paused, pints, elapsed]);
+
+  useEffect(() => {
+    if (lastPintTime && currentPintTime) {
+      setWarning(currentPintTime > lastPintTime);
+    }(currentPintTime > lastPintTime)
+  }, [lastPintTime, currentPintTime]);
 
   useEffect(() => {
     if (elapsed && pints.length > 0) {
@@ -78,6 +87,17 @@ export default function Index() {
   }, [elapsed, pints, elapsedPint]);
 
   const startSess = () => {
+    localStorage.removeItem('elapsed');
+    localStorage.removeItem('elapsedPint');
+    localStorage.removeItem('elapsedString');
+    localStorage.removeItem('lastPintTime');
+    localStorage.removeItem('currentPintTime');
+    localStorage.removeItem('bestPintTime');
+    localStorage.removeItem('pph');
+    localStorage.removeItem('pints');
+    localStorage.removeItem('stamps');
+    localStorage.removeItem('pintStamps');
+    localStorage.removeItem('paused');
     setPph(null);
     setElapsedString('00:00:00');
     setElapsed(null);
@@ -87,6 +107,7 @@ export default function Index() {
     setPints([]);
     setStamps([new Date()]);
     setPaused(false);
+    setWarning(false);
     setRunning(true);
     startPint();
     setElapsed(0);
@@ -150,7 +171,10 @@ export default function Index() {
     setElapsedPint(0);
   }
 
-  const warning = () => (lastPintTime && (currentPintTime > lastPintTime) && <WarningIcon style={{ marginRight: '0.25rem', marginLeft: '0.25rem', color: 'darkorange', fontSize: '14px' }} />)
+  const warningIco = () => (<WarningIcon style={{ marginRight: '0.25rem', marginLeft: '0.25rem', color: 'darkorange', fontSize: '14px' }} />)
+
+  const notBuiltForStags = () => (<span style={{ color: '#ed6c02' }}>Not built for stags</span>)
+  const builtForStags = () => (<span style={{ color: '#2e7d32' }}>Built for stags</span>)
 
   return (
     <main className={styles.main}>
@@ -160,15 +184,18 @@ export default function Index() {
             {pph && pints && pints.length > 1 && <h1>{pph} PPH</h1>}
           </div>
           <div className={styles.meta}>
-            <div style={{opacity: paused ? '0.4' : '1'}}>
+            <div>
+              {lastPintTime && <h4><span>Classification:</span> {warning ? notBuiltForStags() : builtForStags() } </h4>}
+            </div>
+            <div style={{ opacity: paused ? '0.4' : '1', marginTop: '0.5rem' }}>
               {bestPintTime && <h4><span>Best pint:</span> {bestPintTime}</h4>}
               {lastPintTime && <h4><span>Last pint:</span> {lastPintTime}</h4>}
               {currentPintTime && 
                 <h4>
-                  {warning()}
+                  {warning && warningIco()}
                   <span>Current pint:</span>
                   {currentPintTime}
-                  {warning()}
+                  {warning && warningIco()}
                 </h4>
               }
               <h4><span>Pints finished:</span> {pints.length - 1}</h4>
