@@ -16,6 +16,8 @@ export default function Index() {
   const [bestPintTime, setBestPintTime] = useState();
   const [paused, setPaused] = useState();
   const [running, setRunning] = useState();
+  const [stamps, setStamps] = useState();
+  const [pintStamps, setPintStamps] = useState();
 
   useEffect(() => {
     console.log('writing to storage');
@@ -27,6 +29,8 @@ export default function Index() {
     if (bestPintTime) localStorage.setItem('bestPintTime', bestPintTime);
     if (pph) localStorage.setItem('pph', pph);
     if (pints) localStorage.setItem('pints', JSON.stringify(pints));
+    if (stamps) localStorage.setItem('stamps', JSON.stringify(stamps));
+    if (pintStamps) localStorage.setItem('pintStamps', JSON.stringify(pintStamps));
     if (paused != null) localStorage.setItem('paused', paused);
     if (running != null) localStorage.setItem('running', running);
   });
@@ -41,6 +45,8 @@ export default function Index() {
     setCurrentPintTime(localStorage.getItem('currentPintTime') || '00:00');
     setBestPintTime(localStorage.getItem('bestPintTime') || null);
     setPints(localStorage.getItem('pints') ? JSON.parse(localStorage.getItem('pints')) : []);
+    setStamps(localStorage.getItem('stamps') ? JSON.parse(localStorage.getItem('stamps')) : []);
+    setPintStamps(localStorage.getItem('pintStamps') ? JSON.parse(localStorage.getItem('pintStamps')) : []);
     setPaused(localStorage.getItem('paused') === 'true');
     setRunning(localStorage.getItem('running') === 'true');
   }, []);
@@ -48,15 +54,8 @@ export default function Index() {
   useEffect(()=> {
     let intervalId = setInterval(() => {
       if (paused) return;
-      setElapsed((prev) => prev + 1000);
-      setElapsedPint((prev) => prev + 1000);
-      // if (pints && pints.length > 0) {
-      //   setPints(prev => {
-      //     console.log(prev[prev.length - 1]);
-      //     prev[prev.length - 1].elapsed += 1000;
-      //     return prev;
-      //   });
-      // }
+      setElapsed(reduceStamps(stamps));
+      setElapsedPint(reduceStamps(pintStamps));
     }, 1000);
     return () => clearInterval(intervalId); 
   }, [paused, pints, elapsed]);
@@ -86,11 +85,24 @@ export default function Index() {
     setCurrentPintTime('00:00');
     setBestPintTime(null);
     setPints([]);
+    setStamps([new Date()]);
     setPaused(false);
     setRunning(true);
     startPint();
     setElapsed(0);
     setElapsedPint(0);
+  }
+
+  const reduceStamps = (stampList) => {
+    let reduced = stampList.reduce((acc, curr, index, arr) => {
+      if (index === 0) {
+        return acc;
+      } else if (index % 2 !== 0) {
+        acc += (new Date(curr) - new Date(arr[index - 1]))
+      }
+      return acc;
+    }, 0);
+    return new Date() - new Date(stampList[stampList.length - 1]) + reduced;
   }
 
   const reset = () => {
@@ -104,9 +116,22 @@ export default function Index() {
   }
 
   const startPint = () => {
+    setPintStamps([new Date()]);
     setPints(prev => [...prev, {
       start: new Date(),
     }]);
+  }
+
+  const pause = () => {
+    setPaused(true);
+    setStamps(prev => [...prev, new Date()]);
+    setPintStamps(prev => [...prev, new Date()]);
+  }
+
+  const resume = () => {
+    setPaused(false);
+    setStamps(prev => [...prev, new Date()]);
+    setPintStamps(prev => [...prev, new Date()]);
   }
 
   const finishPint = () => {
@@ -150,8 +175,8 @@ export default function Index() {
             </div>
             <div style={{ marginTop: '0.5rem' }}>
               <Button onClick={reset} variant="text" color="info">Reset</Button>
-              {!paused && <Button onClick={() => setPaused(true)} variant="text" color="warning">Pause</Button>}
-              {paused && <Button onClick={() => setPaused(false)} variant="text" color="success">Resume</Button>}
+              {!paused && <Button onClick={pause} variant="text" color="warning">Pause</Button>}
+              {paused && <Button onClick={resume} variant="text" color="success">Resume</Button>}
             </div>
             <div className={styles.pints} style={{ opacity: paused ? '0.4' : '1' }}>
               {pints.map((p,i) => (
