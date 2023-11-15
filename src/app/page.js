@@ -44,7 +44,7 @@ export default function Index() {
     setElapsed(localStorage.getItem('elapsed') ? parseInt(localStorage.getItem('elapsed')) : null);
     setElapsedPint(localStorage.getItem('elapsedPint') ? parseInt(localStorage.getItem('elapsedPint')) : null);
     setLastPintTime(localStorage.getItem('lastPintTime') || null);
-    setCurrentPintTime(localStorage.getItem('currentPintTime') || '00:00');
+    setCurrentPintTime(localStorage.getItem('currentPintTime') || '00:00:00');
     setBestPintTime(localStorage.getItem('bestPintTime') || null);
     setPints(localStorage.getItem('pints') ? JSON.parse(localStorage.getItem('pints')) : []);
     setStamps(localStorage.getItem('stamps') ? JSON.parse(localStorage.getItem('stamps')) : []);
@@ -82,7 +82,7 @@ export default function Index() {
 
       const pintDate = new Date(null);
       pintDate.setSeconds(elapsedPint / 1000);
-      setCurrentPintTime(pintDate.toISOString().slice(14, 19));
+      setCurrentPintTime(pintDate.toISOString().slice(11, 19));
     }
   }, [elapsed, pints, elapsedPint]);
 
@@ -102,7 +102,7 @@ export default function Index() {
     setElapsedString('00:00:00');
     setElapsed(null);
     setLastPintTime(null);
-    setCurrentPintTime('00:00');
+    setCurrentPintTime('00:00:00');
     setBestPintTime(null);
     setPints([]);
     setStamps([new Date()]);
@@ -167,7 +167,7 @@ export default function Index() {
       prev[prev.length - 1].end = new Date();
       return prev
     });
-    setCurrentPintTime('00:00');
+    setCurrentPintTime('00:00:00');
     setElapsedPint(0);
   }
 
@@ -188,12 +188,13 @@ export default function Index() {
               {lastPintTime && <h4><span>Classification:</span> {warning ? notBuiltForStags() : builtForStags() } </h4>}
             </div>
             <div style={{ opacity: paused ? '0.4' : '1', marginTop: '0.5rem' }}>
+              {elapsedString && <h4><span>Session time:</span> {elapsedString}</h4>}
               {bestPintTime && <h4><span>Best pint:</span> {bestPintTime}</h4>}
               {lastPintTime && <h4><span>Last pint:</span> {lastPintTime}</h4>}
               {currentPintTime && 
                 <h4>
                   {warning && warningIco()}
-                  <span>Current pint:</span>
+                  <span>Current pint: </span> 
                   {currentPintTime}
                   {warning && warningIco()}
                 </h4>
